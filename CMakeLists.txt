@@ -7,6 +7,8 @@ include_directories(${QT_INCLUDES})
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+add_definitions(-std=c++0x)
+
 set(SOURCE_FILES
     main.cpp)
     
