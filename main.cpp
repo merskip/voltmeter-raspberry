@@ -8,6 +8,7 @@
 #include <QTcpSocket>
 #include <QNetworkInterface>
 #include <QDateTime>
+#include <QElapsedTimer>
 
 // I2C
 #include <linux/i2c-dev.h>
@@ -90,6 +91,52 @@ int main(int argc, char *argv[]) {
                 response.append(" " + QString::number(data[4]));
                 response.append("\n");
                 client->write(response);
+            } else if (recvMsg.startsWith("frame")) {
+                QList<QByteArray> list = recvMsg.split(' ');
+                if (list.size() < 2) {
+                    client->write("error: too few arguments\n");
+                    continue;
+                }
+
+                bool ok;
+                int duration = list.at(1).toUInt(&ok);
+
+                if (!ok) {
+                    client->write("error: invalid argument\n");
+                    continue;
+                }
+
+                QElapsedTimer timer = QElapsedTimer();
+                QList<char*> dataList;
+                timer.start();
+
+                char dataOut[] = {0x04};
+                i2c->write(dataOut, 1);
+                i2c->read(nullptr, 1);
+
+                char *item;
+                while (!timer.hasExpired(duration)) {
+                    item = new char[4];
+                    i2c->read(item, 4);
+                    dataList.append(item);
+                }
+
+                int dataSize = dataList.size();
+                QByteArray response;
+                response.append(QString::number(dataSize) + "\n");
+                client->write(response);
+
+                for (char *data : dataList) {
+                    response.clear();
+                    response.append(QString::number(data[0]) + " ");
+                    response.append(QString::number(data[1]) + " ");
+                    response.append(QString::number(data[2]) + " ");
+                    response.append(QString::number(data[3]) + "\n");
+                    client->write(response);
+
+                    delete[] data;
+                }
+                dataList.clear();
             } else if (recvMsg == "quit") {
                 client->write("Bye!\n");
                 client->flush();
